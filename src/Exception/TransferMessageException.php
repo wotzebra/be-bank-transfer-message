@@ -1,6 +1,6 @@
 <?php
 
-namespace Netsensei\BeBankTransferMessage\Exception;
+namespace Wotz\BeBankTransferMessage\Exception;
 
 class TransferMessageException extends \Exception
 {
