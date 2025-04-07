@@ -1,178 +1,88 @@
 <?php
 
-namespace Netsensei\BeBankTransferMessage\Test;
+use Wotz\BeBankTransferMessage\Exception\TransferMessageException;
+use Wotz\BeBankTransferMessage\TransferMessage;
 
-use Netsensei\BeBankTransferMessage\TransferMessage;
-use Netsensei\BeBankTransferMessage\Exception\TransferMessageException;
+test('fails if number is not an int', function () {
+    $transferMessage = new TransferMessage();
+    $transferMessage->setNumber('abcd');
+})->throws(TypeError::class);
 
-class TransferMessageTest extends \PHPUnit_Framework_TestCase
-{
-    /** @test */
-    public function testNumberSetterNotAnInt()
-    {
-        $transferMessage = new TransferMessage();
-        try {
-            $transferMessage->setNumber('abcd');
-        } catch (TransferMessageException $e) {
-            $previous = $e->getPrevious();
-            $this->assertInstanceOf('\InvalidArgumentException', $previous);
-            $this->assertEquals(
-                'The number should be an integer larger then 0 and smaller then 9999999999.',
-                $previous->getMessage()
-            );
+test('fails if number is 0', function () {
+    $transferMessage = new TransferMessage();
+    $transferMessage->setNumber(0);
+})->throws(TransferMessageException::class, 'The number should be an integer larger then 0 and smaller then 9999999999.');
 
-            return;
-        }
+test('fails if number is larger than 9999999999', function () {
+    $transferMessage = new TransferMessage();
+    $transferMessage->setNumber(10000000000);
+})->throws(TransferMessageException::class, 'The number should be an integer larger then 0 and smaller then 9999999999.');
 
-        $this->markTestIncomplete('This test should have thrown an exception');
-    }
+test('modulus getter', function () {
+    $transferMessage = new TransferMessage(119698);
 
-    /** @test */
-    public function testNumberSetterOutOfLowerBound()
-    {
-        $transferMessage = new TransferMessage();
-        try {
-            $number = 0;
-            $transferMessage->setNumber($number);
-        } catch (TransferMessageException $e) {
-            $previous = $e->getPrevious();
-            $this->assertInstanceOf('\InvalidArgumentException', $previous);
-            $this->assertEquals(
-                'The number should be an integer larger then 0 and smaller then 9999999999.',
-                $previous->getMessage()
-            );
+    expect($transferMessage->getModulus())->toEqual(TransferMessage::MODULO);
 
-            return;
-        }
+    $transferMessage->setNumber(123456);
+    $transferMessage->generate();
 
-        $this->markTestIncomplete('This test should have thrown an exception');
-    }
+    expect($transferMessage->getModulus())->toEqual(72);
+});
 
-    /** @test */
-    public function testNumberSetterOutofUpperBound()
-    {
-        $transferMessage = new TransferMessage();
-        $number = 10000000000;
-        try {
-            $number = 0;
-            $transferMessage->setNumber($number);
-        } catch (TransferMessageException $e) {
-            $previous = $e->getPrevious();
-            $this->assertInstanceOf('\InvalidArgumentException', $previous);
-            $this->assertEquals(
-                'The number should be an integer larger then 0 and smaller then 9999999999.',
-                $previous->getMessage()
-            );
+test('number getter', function () {
+    $expectedNumber = 119698;
+    $transferMessage = new TransferMessage($expectedNumber);
 
-            return;
-        }
+    expect($transferMessage->getNumber())->toEqual($expectedNumber);
+});
 
-        $this->markTestIncomplete('This test should have thrown an exception');
-    }
+test('generated message format', function () {
+    $pattern = '/^[\+\*]{3}[0-9]{3}[\/]?[0-9]{4}[\/]?[0-9]{5}[\+\*]{3}$/';
 
-    /** @test */
-    public function testModulusGetter()
-    {
-        $transferMessage = new TransferMessage(119698);
-        $modulus = $transferMessage->getModulus();
+    $transferMessage = new TransferMessage();
 
-        $this->assertEquals(TransferMessage::MODULO, $modulus);
+    expect($transferMessage->generate())->toMatch($pattern);
 
-        $transferMessage->setNumber(123456);
-        $transferMessage->generate();
-        $modulus = $transferMessage->getModulus();
+    $transferMessage->generate(TransferMessage::CIRCUMFIX_ASTERISK);
+    expect($transferMessage->generate())->toMatch($pattern);
 
-        $this->assertEquals(72, $modulus);
-    }
+    $transferMessage->setNumber(1);
+    $transferMessage->generate();
+    expect($transferMessage->generate())->toMatch($pattern);
+});
 
-    /** @test */
-    public function testNumberGetter()
-    {
-        $expectedNumber = 119698;
-        $transferMessage = new TransferMessage($expectedNumber);
-        $actual = $transferMessage->getNumber();
+test('structured message setter invalid input', function () {
+    $transferMessage = new TransferMessage();
+    $transferMessage->setStructuredMessage('+++000\0119\69897+++');
+})->throws(TransferMessageException::class, 'The structured message does not have a valid format.');
 
-        $this->assertEquals($expectedNumber, $actual);
-    }
+test('validate structured message', function () {
+    // Number with carry > 0
+    $transferMessage = new TransferMessage(123456);
+    expect($transferMessage->validate())->toBeTrue();
 
-    /** @test */
-    public function testGeneratedMessageFormat()
-    {
-        $pattern = '/^[\+\*]{3}[0-9]{3}[\/]?[0-9]{4}[\/]?[0-9]{5}[\+\*]{3}$/';
+    // Number with carry = 0
+    $transferMessage->setNumber(119698);
+    $transferMessage->generate();
+    expect($transferMessage->validate())->toBeTrue();
 
-        $transferMessage = new TransferMessage();
+    // With 0's prepadded
+    $transferMessage->setNumber(1);
+    expect($transferMessage->validate())->toBeTrue();
 
-        $structuredMessage = $transferMessage->getStructuredMessage();
-        $this->assertRegexp($pattern, $structuredMessage);
+    // Carry = 0
+    $transferMessage->setStructuredMessage('+++000/0119/69897+++');
+    expect($transferMessage->validate())->toBeTrue();
 
-        $transferMessage->generate(TransferMessage::CIRCUMFIX_ASTERISK);
-        $structuredMessage = $transferMessage->getStructuredMessage();
-        $this->assertRegexp($pattern, $structuredMessage);
+    // Carry > 0
+    $transferMessage->setStructuredMessage('+++090/9337/55493+++');
+    expect($transferMessage->validate())->toBeTrue();
 
-        $transferMessage->setNumber(1);
-        $transferMessage->generate();
-        $structuredMessage = $transferMessage->getStructuredMessage();
-        $this->assertRegexp($pattern, $structuredMessage);
-    }
+    // With asterisks
+    $transferMessage->setStructuredMessage('***090/9337/55493***');
+    expect($transferMessage->validate())->toBeTrue();
 
-    /** @test */
-    public function testStructuredMessageSetterInvalidInput()
-    {
-        $transferMessage = new TransferMessage();
-
-        try {
-            $transferMessage->setStructuredMessage('+++000\0119\69897+++');
-        } catch (TransferMessageException $e) {
-            $previous = $e->getPrevious();
-            $this->assertInstanceOf('\InvalidArgumentException', $previous);
-            $this->assertEquals(
-                'The structured message does not have a valid format.',
-                $previous->getMessage()
-            );
-
-            return;
-        }
-
-        $this->markTestIncomplete('This test should have thrown an exception');
-    }
-
-    /** @test */
-    public function testValidateStructuredMessage()
-    {
-        // Number with carry > 0
-        $transferMessage = new TransferMessage(123456);
-        $result = $transferMessage->validate();
-        $this->assertTrue($result);
-
-        // Number with carry = 0
-        $transferMessage->setNumber(119698);
-        $transferMessage->generate();
-        $result = $transferMessage->validate();
-        $this->assertTrue($result);
-
-        // With 0's prepadded
-        $transferMessage->setNumber(1);
-        $result = $transferMessage->validate();
-        $this->assertTrue($result);
-
-        // Carry = 0
-        $transferMessage->setStructuredMessage('+++000/0119/69897+++');
-        $result = $transferMessage->validate();
-        $this->assertTrue($result);
-
-        // Carry > 0
-        $transferMessage->setStructuredMessage('+++090/9337/55493+++');
-        $result = $transferMessage->validate();
-        $this->assertTrue($result);
-
-        // With asterisks
-        $transferMessage->setStructuredMessage('***090/9337/55493***');
-        $result = $transferMessage->validate();
-        $this->assertTrue($result);
-
-        // Invalid structured message
-        $transferMessage->setStructuredMessage('+++011/9337/55493+++');
-        $result = $transferMessage->validate();
-        $this->assertFalse($result);
-    }
-}
+    // Invalid structured message
+    $transferMessage->setStructuredMessage('+++011/9337/55493+++');
+    expect($transferMessage->validate())->toBeFalse();
+});

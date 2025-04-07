@@ -1,8 +1,8 @@
 {
-    "name": "kouinkouin/be-bank-transfer-message",
+    "name": "wotz/be-bank-transfer-message",
     "description": "Generate and validate Belgian bank transfer structured messages",
     "keywords": [
-        "kouinkouin",
+        "wotz",
         "be-bank-transfer-message",
         "finance",
         "belgium",
@@ -12,40 +12,28 @@
         "order",
         "payment"
     ],
-    "homepage": "https://github.com/kouinkouin/be-bank-transfer-message",
+    "homepage": "https://github.com/wotzebra/be-bank-transfer-message",
     "license": "MIT",
-    "authors": [
-        {
-            "name": "Matthias Vandermaesen",
-            "email": "matthias@colada.be",
-            "homepage": "http://www.colada.be",
-            "role": "lead"
-        },
-        {
-            "name": "kouinkouin",
-            "email": "me@kouinkouin.com",
-            "role": "lead"
-        }
-    ],
     "require": {
-        "php" : ">=5.4.0"
+        "php" : "^8.0"
     },
     "require-dev": {
-        "phpunit/phpunit" : "4.*"
+        "pestphp/pest" : "^3.0",
+        "phpstan/phpstan": "^2.1"
     },
     "autoload": {
         "psr-4": {
-            "Netsensei\\BeBankTransferMessage\\": "src"
+            "Wotz\\BeBankTransferMessage\\": "src"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Netsensei\\BeBankTransferMessage\\Test\\": "tests"
+            "Wotz\\BeBankTransferMessage\\Test\\": "tests"
         }
     },
-    "extra": {
-        "branch-alias": {
-            "dev-master": "1.0-dev"
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
         }
     }
 }

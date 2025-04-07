@@ -19,7 +19,7 @@ The structured message format adheres to the [Febelfin Guidelines](https://www.f
 Via Composer
 
 ``` bash
-$ composer require kouinkouin/be-bank-transfer-message
+$ composer require wotzebra/be-bank-transfer-message
 ```
 
 ## Usage
